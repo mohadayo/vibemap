@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}{{ spot.title }} - VibeMap{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-7">
+    {% with images=spot.images.all %}
+    {% if images %}
+    <img src="{{ images.0.image.url }}" class="spot-detail-img mb-3" alt="{{ spot.title }}" id="mainImage">
+    {% if images|length > 1 %}
+    <div class="d-flex gap-2 mb-3 flex-wrap">
+      {% for img in images %}
+      <img src="{{ img.image.url }}" class="spot-gallery-thumb {% if forloop.first %}active{% endif %}" alt="画像{{ forloop.counter }}" onclick="document.getElementById('mainImage').src=this.src; document.querySelectorAll('.spot-gallery-thumb').forEach(e=>e.classList.remove('active')); this.classList.add('active');">
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="no-image spot-detail-img mb-3 d-flex align-items-center justify-content-center" style="border-radius:12px;">
+      <i class="bi bi-geo-alt" style="font-size:4rem;"></i>
+    </div>
+    {% endif %}
+    {% endwith %}
+  </div>
+
+  <div class="col-lg-5">
+    <div class="d-flex align-items-center mb-2">
+      {% if spot.category %}
+      <span class="badge bg-warning text-dark me-2">{{ spot.category.name }}</span>
+      {% endif %}
+      <span class="text-muted small"><i class="bi bi-clock"></i> {{ spot.created_at|date:"Y/m/d" }}</span>
+    </div>
+
+    <h2 class="fw-bold mb-2">{{ spot.title }}</h2>
+
+    <p class="text-muted mb-1"><i class="bi bi-geo-alt-fill text-danger"></i> {{ spot.area }}{% if spot.address %} / {{ spot.address }}{% endif %}</p>
+
+    <div class="d-flex align-items-center mb-3">
+      <a href="{% url 'accounts:user_profile' username=spot.author.username %}" class="text-decoration-none text-dark d-flex align-items-center">
+        {% if spot.author.profile.avatar %}
+        <img src="{{ spot.author.profile.avatar.url }}" class="avatar-sm me-2" alt="">
+        {% else %}
+        <i class="bi bi-person-circle me-2" style="font-size:1.5rem;"></i>
+        {% endif %}
+        <span class="fw-bold">{{ spot.author.profile.get_display_name }}</span>
+      </a>
+    </div>
+
+    <div class="d-flex gap-3 mb-3">
+      {% if user.is_authenticated %}
+      <form method="post" action="{% url 'spots:spot_like' pk=spot.pk %}" class="d-inline">
+        {% csrf_token %}
+        <button type="submit" class="btn-like {% if is_liked %}active{% endif %}" title="いいね">
+          <i class="bi {% if is_liked %}bi-heart-fill{% else %}bi-heart{% endif %}"></i>
+        </button>
+        <span class="small">{{ spot.like_count }}</span>
+      </form>
+      <form method="post" action="{% url 'spots:spot_bookmark' pk=spot.pk %}" class="d-inline">
+        {% csrf_token %}
+        <button type="submit" class="btn-bookmark {% if is_bookmarked %}active{% endif %}" title="保存">
+          <i class="bi {% if is_bookmarked %}bi-bookmark-fill{% else %}bi-bookmark{% endif %}"></i>
+        </button>
+      </form>
+      {% else %}
+      <span class="btn-like"><i class="bi bi-heart"></i></span>
+      <span class="small">{{ spot.like_count }}</span>
+      {% endif %}
+
+      {% if user == spot.author %}
+      <a href="{% url 'spots:spot_edit' pk=spot.pk %}" class="btn btn-outline-secondary btn-sm ms-auto"><i class="bi bi-pencil"></i> 編集</a>
+      <a href="{% url 'spots:spot_delete' pk=spot.pk %}" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></a>
+      {% endif %}
+    </div>
+
+    <div class="mb-4">
+      <p style="white-space:pre-wrap;">{{ spot.description }}</p>
+    </div>
+
+    <hr>
+
+    <h6 class="fw-bold mb-3"><i class="bi bi-chat-dots"></i> コメント ({{ spot.comments.count }})</h6>
+
+    {% if user.is_authenticated %}
+    <form method="post" class="mb-3">
+      {% csrf_token %}
+      {{ comment_form.text }}
+      <button type="submit" class="btn btn-warning btn-sm mt-2">コメントする</button>
+    </form>
+    {% else %}
+    <p class="text-muted small">コメントするには<a href="{% url 'accounts:login' %}">ログイン</a>してください</p>
+    {% endif %}
+
+    {% for comment in spot.comments.all %}
+    <div class="comment-item">
+      <div class="d-flex align-items-center mb-1">
+        <a href="{% url 'accounts:user_profile' username=comment.user.username %}" class="text-decoration-none text-dark fw-bold small">
+          {{ comment.user.profile.get_display_name }}
+        </a>
+        <span class="text-muted small ms-2">{{ comment.created_at|date:"Y/m/d H:i" }}</span>
+      </div>
+      <p class="mb-0 small">{{ comment.text }}</p>
+    </div>
+    {% empty %}
+    <p class="text-muted small">まだコメントはありません</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

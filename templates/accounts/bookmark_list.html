@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}保存済みスポット - VibeMap{% endblock %}
+
+{% block content %}
+<h3 class="fw-bold mb-4"><i class="bi bi-bookmark-fill text-warning"></i> 保存済みスポット</h3>
+
+{% if bookmarks %}
+<div class="row g-3">
+  {% for bm in bookmarks %}
+  <div class="col-6 col-md-4 col-lg-3">
+    <a href="{% url 'spots:spot_detail' pk=bm.spot.pk %}" class="text-decoration-none">
+      <div class="card spot-card h-100">
+        {% if bm.spot.first_image %}
+        <img src="{{ bm.spot.first_image.url }}" class="card-img-top" alt="{{ bm.spot.title }}">
+        {% else %}
+        <div class="no-image"><i class="bi bi-geo-alt"></i></div>
+        {% endif %}
+        <div class="card-body">
+          {% if bm.spot.category %}
+          <span class="badge bg-warning text-dark mb-1">{{ bm.spot.category.name }}</span>
+          {% endif %}
+          <h6 class="card-title text-dark">{{ bm.spot.title }}</h6>
+          <p class="spot-meta"><i class="bi bi-geo-alt"></i> {{ bm.spot.area }}</p>
+        </div>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5">
+  <i class="bi bi-bookmark" style="font-size:3rem;color:#ccc;"></i>
+  <p class="text-muted mt-2">保存済みのスポットはありません</p>
+</div>
+{% endif %}
+{% endblock %}

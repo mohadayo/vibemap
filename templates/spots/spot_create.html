@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}スポットを投稿 - VibeMap{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <h3 class="fw-bold mb-4"><i class="bi bi-plus-circle text-warning"></i> スポットを投稿</h3>
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="mb-3">
+        <label class="form-label fw-bold">タイトル</label>
+        {{ form.title }}
+        {% if form.title.errors %}<div class="text-danger small">{{ form.title.errors.0 }}</div>{% endif %}
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-bold">カテゴリ</label>
+        {{ form.category }}
+      </div>
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <label class="form-label fw-bold">エリア</label>
+          {{ form.area }}
+          {% if form.area.errors %}<div class="text-danger small">{{ form.area.errors.0 }}</div>{% endif %}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">住所（任意）</label>
+          {{ form.address }}
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-bold">説明</label>
+        {{ form.description }}
+        {% if form.description.errors %}<div class="text-danger small">{{ form.description.errors.0 }}</div>{% endif %}
+      </div>
+      <div class="mb-4">
+        <label class="form-label fw-bold">写真（1枚以上、複数選択可）</label>
+        <input type="file" name="images" class="form-control" accept="image/*" multiple required>
+      </div>
+      <button type="submit" class="btn btn-warning btn-lg w-100 fw-bold">投稿する</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
