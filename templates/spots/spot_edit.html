@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}編集: {{ spot.title }} - VibeMap{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <h3 class="fw-bold mb-4"><i class="bi bi-pencil text-warning"></i> スポットを編集</h3>
+
+    {% if spot.images.all %}
+    <div class="d-flex gap-2 mb-3 flex-wrap">
+      {% for img in spot.images.all %}
+      <img src="{{ img.image.url }}" class="spot-gallery-thumb" alt="現在の画像">
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="mb-3">
+        <label class="form-label fw-bold">タイトル</label>
+        {{ form.title }}
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-bold">カテゴリ</label>
+        {{ form.category }}
+      </div>
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <label class="form-label fw-bold">エリア</label>
+          {{ form.area }}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">住所（任意）</label>
+          {{ form.address }}
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-bold">説明</label>
+        {{ form.description }}
+      </div>
+      <div class="mb-4">
+        <label class="form-label fw-bold">写真を変更する場合のみ選択</label>
+        <input type="file" name="images" class="form-control" accept="image/*" multiple>
+        <div class="form-text">新しい写真を選択すると、既存の写真は置き換えられます</div>
+      </div>
+      <button type="submit" class="btn btn-warning btn-lg w-100 fw-bold">更新する</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

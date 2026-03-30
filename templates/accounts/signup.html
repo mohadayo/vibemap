@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}新規登録 - VibeMap{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+  <div class="card border-0 shadow-sm" style="border-radius:16px;">
+    <div class="card-body p-4">
+      <h3 class="text-center fw-bold mb-1"><i class="bi bi-geo-alt-fill text-warning"></i></h3>
+      <h4 class="text-center fw-bold mb-4">VibeMapに登録</h4>
+      <form method="post">
+        {% csrf_token %}
+        {% for field in form %}
+        <div class="mb-3">
+          <label class="form-label fw-bold small">{{ field.label }}</label>
+          {{ field }}
+          {% if field.errors %}
+          <div class="text-danger small">{{ field.errors.0 }}</div>
+          {% endif %}
+          {% if field.help_text %}
+          <div class="form-text">{{ field.help_text }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-warning w-100 fw-bold py-2">登録する</button>
+      </form>
+      <p class="text-center mt-3 mb-0 small">
+        すでにアカウントをお持ちですか？ <a href="{% url 'accounts:login' %}">ログイン</a>
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

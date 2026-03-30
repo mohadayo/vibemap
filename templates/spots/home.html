@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}VibeMap - お気に入りスポットをシェアしよう{% endblock %}
+
+{% block content %}
+<div class="hero-section">
+  <h1><i class="bi bi-geo-alt-fill text-warning"></i> VibeMap</h1>
+  <p class="mb-0">お気に入りのスポットを見つけて、シェアしよう</p>
+</div>
+
+{% if categories %}
+<div class="mb-4 text-center">
+  <a href="{% url 'spots:home' %}" class="category-pill bg-dark text-white me-1 mb-1">すべて</a>
+  {% for cat in categories %}
+  <a href="{% url 'spots:spot_search' %}?category={{ cat.slug }}" class="category-pill bg-warning text-dark me-1 mb-1">{{ cat.name }}</a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<h5 class="fw-bold mb-3"><i class="bi bi-fire"></i> 新着スポット</h5>
+
+{% if spots %}
+<div class="row g-3">
+  {% for spot in spots %}
+  <div class="col-6 col-md-4 col-lg-3">
+    <a href="{% url 'spots:spot_detail' pk=spot.pk %}" class="text-decoration-none">
+      <div class="card spot-card h-100">
+        {% if spot.first_image %}
+        <img src="{{ spot.first_image.url }}" class="card-img-top" alt="{{ spot.title }}">
+        {% else %}
+        <div class="no-image"><i class="bi bi-geo-alt"></i></div>
+        {% endif %}
+        <div class="card-body">
+          {% if spot.category %}
+          <span class="badge bg-warning text-dark mb-1">{{ spot.category.name }}</span>
+          {% endif %}
+          <h6 class="card-title text-dark">{{ spot.title }}</h6>
+          <p class="spot-meta mb-1"><i class="bi bi-geo-alt"></i> {{ spot.area }}</p>
+          <p class="spot-meta"><i class="bi bi-heart-fill text-danger"></i> {{ spot.like_count }} <span class="ms-2"><i class="bi bi-person"></i> {{ spot.author.profile.get_display_name }}</span></p>
+        </div>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5">
+  <i class="bi bi-geo-alt" style="font-size:3rem;color:#ccc;"></i>
+  <p class="text-muted mt-2">まだスポットが投稿されていません</p>
+  {% if user.is_authenticated %}
+  <a href="{% url 'spots:spot_create' %}" class="btn btn-warning">最初のスポットを投稿する</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

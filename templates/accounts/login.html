@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}ログイン - VibeMap{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+  <div class="card border-0 shadow-sm" style="border-radius:16px;">
+    <div class="card-body p-4">
+      <h3 class="text-center fw-bold mb-1"><i class="bi bi-geo-alt-fill text-warning"></i></h3>
+      <h4 class="text-center fw-bold mb-4">ログイン</h4>
+      <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label class="form-label fw-bold small">ユーザー名</label>
+          <input type="text" name="username" class="form-control" required autofocus>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold small">パスワード</label>
+          <input type="password" name="password" class="form-control" required>
+        </div>
+        {% if form.errors %}
+        <div class="alert alert-danger small py-2">ユーザー名またはパスワードが正しくありません</div>
+        {% endif %}
+        <button type="submit" class="btn btn-warning w-100 fw-bold py-2">ログイン</button>
+      </form>
+      <p class="text-center mt-3 mb-0 small">
+        アカウントをお持ちでないですか？ <a href="{% url 'accounts:signup' %}">新規登録</a>
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

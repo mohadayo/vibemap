@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}検索結果 - VibeMap{% endblock %}
+
+{% block content %}
+<h3 class="fw-bold mb-3"><i class="bi bi-search"></i> スポット検索</h3>
+
+<div class="search-filters">
+  <form method="get" action="{% url 'spots:spot_search' %}">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label small fw-bold">キーワード</label>
+        <input type="text" name="q" class="form-control" value="{{ q }}" placeholder="スポット名・説明">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small fw-bold">カテゴリ</label>
+        <select name="category" class="form-select">
+          <option value="">すべて</option>
+          {% for cat in categories %}
+          <option value="{{ cat.slug }}" {% if cat.slug == category_slug %}selected{% endif %}>{{ cat.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small fw-bold">エリア</label>
+        <input type="text" name="area" class="form-control" value="{{ area }}" placeholder="例: 渋谷">
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-warning w-100"><i class="bi bi-search"></i> 検索</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+{% if spots %}
+<p class="text-muted small mb-3">{{ spots|length }}件のスポットが見つかりました</p>
+<div class="row g-3">
+  {% for spot in spots %}
+  <div class="col-6 col-md-4 col-lg-3">
+    <a href="{% url 'spots:spot_detail' pk=spot.pk %}" class="text-decoration-none">
+      <div class="card spot-card h-100">
+        {% if spot.first_image %}
+        <img src="{{ spot.first_image.url }}" class="card-img-top" alt="{{ spot.title }}">
+        {% else %}
+        <div class="no-image"><i class="bi bi-geo-alt"></i></div>
+        {% endif %}
+        <div class="card-body">
+          {% if spot.category %}
+          <span class="badge bg-warning text-dark mb-1">{{ spot.category.name }}</span>
+          {% endif %}
+          <h6 class="card-title text-dark">{{ spot.title }}</h6>
+          <p class="spot-meta"><i class="bi bi-geo-alt"></i> {{ spot.area }}</p>
+        </div>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5">
+  <i class="bi bi-search" style="font-size:3rem;color:#ccc;"></i>
+  <p class="text-muted mt-2">該当するスポットが見つかりませんでした</p>
+</div>
+{% endif %}
+{% endblock %}
