@@ -1,12 +1,24 @@
+import os
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = "django-insecure-xzy_l8_hfjiq&n0y*hc5$4@+q7sg@i#xym_d$t65(m)d4rp2ty"
+load_dotenv(BASE_DIR / ".env")
 
-DEBUG = True
+SECRET_KEY = os.environ.get(
+    "SECRET_KEY",
+    "django-insecure-dev-only-fallback-do-not-use-in-production",
+)
 
-ALLOWED_HOSTS = []
+DEBUG = os.environ.get("DEBUG", "False").lower() in ("true", "1", "yes")
+
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.environ.get("ALLOWED_HOSTS", "").split(",")
+    if h.strip()
+]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -78,3 +90,38 @@ LOGIN_REDIRECT_URL = "spots:home"
 LOGOUT_REDIRECT_URL = "spots:home"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+LOG_DIR = BASE_DIR / "logs"
+LOG_DIR.mkdir(exist_ok=True)
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "[{asctime}] {levelname} {name} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+        "file": {
+            "class": "logging.FileHandler",
+            "filename": LOG_DIR / "vibemap.log",
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
+        "spots": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+        },
+        "accounts": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+        },
+    },
+}

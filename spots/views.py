@@ -1,9 +1,18 @@
-from django.shortcuts import render, redirect, get_object_or_404
+import logging
+
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+from django.db import transaction
 from django.db.models import Q
+from django.http import JsonResponse
+from django.shortcuts import render, redirect, get_object_or_404
 from .models import Spot, SpotImage, Like, Bookmark, Category
 from .forms import SpotForm, CommentForm
+
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
+
+logger = logging.getLogger("spots")
 
 
 def home(request):
@@ -12,17 +21,42 @@ def home(request):
     return render(request, "spots/home.html", {"spots": spots, "categories": categories})
 
 
+def _validate_image(f):
+    """Return an error message if the file is not a valid image, else None."""
+    if f.content_type not in ALLOWED_IMAGE_TYPES:
+        return f"'{f.name}' は対応していないファイル形式です。JPEG/PNG/GIF/WebPのみ対応しています。"
+    if f.size > MAX_IMAGE_SIZE:
+        return f"'{f.name}' のファイルサイズが上限(10MB)を超えています。"
+    return None
+
+
 @login_required
 def spot_create(request):
     if request.method == "POST":
         form = SpotForm(request.POST)
         files = request.FILES.getlist("images")
         if form.is_valid() and files:
-            spot = form.save(commit=False)
-            spot.author = request.user
-            spot.save()
-            for i, f in enumerate(files):
-                SpotImage.objects.create(spot=spot, image=f, order=i)
+            # Validate all uploaded images before saving anything
+            for f in files:
+                error = _validate_image(f)
+                if error:
+                    logger.warning("Image validation failed in spot_create: %s", error)
+                    messages.error(request, error)
+                    return render(request, "spots/spot_create.html", {"form": form})
+
+            try:
+                with transaction.atomic():
+                    spot = form.save(commit=False)
+                    spot.author = request.user
+                    spot.save()
+                    for i, f in enumerate(files):
+                        SpotImage.objects.create(spot=spot, image=f, order=i)
+            except Exception:
+                logger.exception("Failed to create spot for user=%s", request.user)
+                messages.error(request, "スポットの作成中にエラーが発生しました。もう一度お試しください。")
+                return render(request, "spots/spot_create.html", {"form": form})
+
+            logger.info("Spot created: id=%d title='%s' by user=%s", spot.pk, spot.title, request.user)
             return redirect("spots:spot_detail", pk=spot.pk)
     else:
         form = SpotForm()
@@ -48,6 +82,7 @@ def spot_detail(request, pk):
             comment.user = request.user
             comment.spot = spot
             comment.save()
+            logger.info("Comment added on spot=%d by user=%s", pk, request.user)
             return redirect("spots:spot_detail", pk=pk)
 
     return render(
@@ -74,6 +109,7 @@ def spot_edit(request, pk):
                 spot.images.all().delete()
                 for i, f in enumerate(files):
                     SpotImage.objects.create(spot=spot, image=f, order=i)
+            logger.info("Spot edited: id=%d by user=%s", spot.pk, request.user)
             return redirect("spots:spot_detail", pk=spot.pk)
     else:
         form = SpotForm(instance=spot)
@@ -84,6 +120,7 @@ def spot_edit(request, pk):
 def spot_delete(request, pk):
     spot = get_object_or_404(Spot, pk=pk, author=request.user)
     if request.method == "POST":
+        logger.info("Spot deleted: id=%d title='%s' by user=%s", spot.pk, spot.title, request.user)
         spot.delete()
         return redirect("spots:home")
     return render(request, "spots/spot_delete.html", {"spot": spot})
@@ -95,6 +132,7 @@ def spot_like(request, pk):
     like, created = Like.objects.get_or_create(user=request.user, spot=spot)
     if not created:
         like.delete()
+    logger.info("Spot %s: id=%d by user=%s", "liked" if created else "unliked", pk, request.user)
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return JsonResponse({"liked": created, "count": spot.like_count})
     return redirect("spots:spot_detail", pk=pk)
@@ -106,6 +144,7 @@ def spot_bookmark(request, pk):
     bookmark, created = Bookmark.objects.get_or_create(user=request.user, spot=spot)
     if not created:
         bookmark.delete()
+    logger.info("Spot %s: id=%d by user=%s", "bookmarked" if created else "unbookmarked", pk, request.user)
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return JsonResponse({"bookmarked": created})
     return redirect("spots:spot_detail", pk=pk)
@@ -125,6 +164,7 @@ def spot_search(request):
     if area:
         spots = spots.filter(area__icontains=area)
 
+    logger.info("Search: q='%s' category='%s' area='%s'", q, category_slug, area)
     categories = Category.objects.all()
     return render(
         request,
