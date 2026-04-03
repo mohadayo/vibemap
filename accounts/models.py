@@ -1,7 +1,11 @@
+import logging
+
 from django.db import models
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+
+logger = logging.getLogger("accounts")
 
 
 class Profile(models.Model):
@@ -23,7 +27,10 @@ class Profile(models.Model):
 
 @receiver(post_save, sender=User)
 def create_or_update_profile(sender, instance, created, **kwargs):
-    if created:
-        Profile.objects.create(user=instance)
-    else:
-        instance.profile.save()
+    try:
+        if created:
+            Profile.objects.create(user=instance)
+        else:
+            instance.profile.save()
+    except Exception:
+        logger.exception("Failed to create/update profile for user=%s", instance.username)

@@ -1,9 +1,13 @@
+import logging
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.db.models import Q
 from .models import Spot, SpotImage, Like, Bookmark, Category
 from .forms import SpotForm, CommentForm
+
+logger = logging.getLogger("spots")
 
 
 def home(request):
@@ -23,6 +27,7 @@ def spot_create(request):
             spot.save()
             for i, f in enumerate(files):
                 SpotImage.objects.create(spot=spot, image=f, order=i)
+            logger.info("Spot created: id=%d title='%s' by user=%s", spot.pk, spot.title, request.user)
             return redirect("spots:spot_detail", pk=spot.pk)
     else:
         form = SpotForm()
@@ -48,6 +53,7 @@ def spot_detail(request, pk):
             comment.user = request.user
             comment.spot = spot
             comment.save()
+            logger.info("Comment added on spot=%d by user=%s", pk, request.user)
             return redirect("spots:spot_detail", pk=pk)
 
     return render(
@@ -74,6 +80,7 @@ def spot_edit(request, pk):
                 spot.images.all().delete()
                 for i, f in enumerate(files):
                     SpotImage.objects.create(spot=spot, image=f, order=i)
+            logger.info("Spot edited: id=%d by user=%s", spot.pk, request.user)
             return redirect("spots:spot_detail", pk=spot.pk)
     else:
         form = SpotForm(instance=spot)
@@ -84,6 +91,7 @@ def spot_edit(request, pk):
 def spot_delete(request, pk):
     spot = get_object_or_404(Spot, pk=pk, author=request.user)
     if request.method == "POST":
+        logger.info("Spot deleted: id=%d title='%s' by user=%s", spot.pk, spot.title, request.user)
         spot.delete()
         return redirect("spots:home")
     return render(request, "spots/spot_delete.html", {"spot": spot})
@@ -95,6 +103,7 @@ def spot_like(request, pk):
     like, created = Like.objects.get_or_create(user=request.user, spot=spot)
     if not created:
         like.delete()
+    logger.info("Spot %s: id=%d by user=%s", "liked" if created else "unliked", pk, request.user)
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return JsonResponse({"liked": created, "count": spot.like_count})
     return redirect("spots:spot_detail", pk=pk)
@@ -106,6 +115,7 @@ def spot_bookmark(request, pk):
     bookmark, created = Bookmark.objects.get_or_create(user=request.user, spot=spot)
     if not created:
         bookmark.delete()
+    logger.info("Spot %s: id=%d by user=%s", "bookmarked" if created else "unbookmarked", pk, request.user)
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return JsonResponse({"bookmarked": created})
     return redirect("spots:spot_detail", pk=pk)
@@ -125,6 +135,7 @@ def spot_search(request):
     if area:
         spots = spots.filter(area__icontains=area)
 
+    logger.info("Search: q='%s' category='%s' area='%s'", q, category_slug, area)
     categories = Category.objects.all()
     return render(
         request,
