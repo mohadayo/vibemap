@@ -1,11 +1,16 @@
 import logging
 
-from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+from django.db import transaction
 from django.db.models import Q
+from django.http import JsonResponse
+from django.shortcuts import render, redirect, get_object_or_404
 from .models import Spot, SpotImage, Like, Bookmark, Category
 from .forms import SpotForm, CommentForm
+
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 logger = logging.getLogger("spots")
 
@@ -16,17 +21,41 @@ def home(request):
     return render(request, "spots/home.html", {"spots": spots, "categories": categories})
 
 
+def _validate_image(f):
+    """Return an error message if the file is not a valid image, else None."""
+    if f.content_type not in ALLOWED_IMAGE_TYPES:
+        return f"'{f.name}' は対応していないファイル形式です。JPEG/PNG/GIF/WebPのみ対応しています。"
+    if f.size > MAX_IMAGE_SIZE:
+        return f"'{f.name}' のファイルサイズが上限(10MB)を超えています。"
+    return None
+
+
 @login_required
 def spot_create(request):
     if request.method == "POST":
         form = SpotForm(request.POST)
         files = request.FILES.getlist("images")
         if form.is_valid() and files:
-            spot = form.save(commit=False)
-            spot.author = request.user
-            spot.save()
-            for i, f in enumerate(files):
-                SpotImage.objects.create(spot=spot, image=f, order=i)
+            # Validate all uploaded images before saving anything
+            for f in files:
+                error = _validate_image(f)
+                if error:
+                    logger.warning("Image validation failed in spot_create: %s", error)
+                    messages.error(request, error)
+                    return render(request, "spots/spot_create.html", {"form": form})
+
+            try:
+                with transaction.atomic():
+                    spot = form.save(commit=False)
+                    spot.author = request.user
+                    spot.save()
+                    for i, f in enumerate(files):
+                        SpotImage.objects.create(spot=spot, image=f, order=i)
+            except Exception:
+                logger.exception("Failed to create spot for user=%s", request.user)
+                messages.error(request, "スポットの作成中にエラーが発生しました。もう一度お試しください。")
+                return render(request, "spots/spot_create.html", {"form": form})
+
             logger.info("Spot created: id=%d title='%s' by user=%s", spot.pk, spot.title, request.user)
             return redirect("spots:spot_detail", pk=spot.pk)
     else:
