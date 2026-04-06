@@ -17,13 +17,16 @@ def spot_create(request):
     if request.method == "POST":
         form = SpotForm(request.POST)
         files = request.FILES.getlist("images")
-        if form.is_valid() and files:
-            spot = form.save(commit=False)
-            spot.author = request.user
-            spot.save()
-            for i, f in enumerate(files):
-                SpotImage.objects.create(spot=spot, image=f, order=i)
-            return redirect("spots:spot_detail", pk=spot.pk)
+        if form.is_valid():
+            if not files:
+                form.add_error(None, "画像を1枚以上アップロードしてください。")
+            else:
+                spot = form.save(commit=False)
+                spot.author = request.user
+                spot.save()
+                for i, f in enumerate(files):
+                    SpotImage.objects.create(spot=spot, image=f, order=i)
+                return redirect("spots:spot_detail", pk=spot.pk)
     else:
         form = SpotForm()
     return render(request, "spots/spot_create.html", {"form": form})
@@ -107,7 +110,7 @@ def spot_bookmark(request, pk):
     if not created:
         bookmark.delete()
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-        return JsonResponse({"bookmarked": created})
+        return JsonResponse({"bookmarked": created, "count": spot.bookmarks.count()})
     return redirect("spots:spot_detail", pk=pk)
 
 

@@ -68,6 +68,9 @@ class Like(models.Model):
         verbose_name_plural = "いいね"
         unique_together = ("user", "spot")
 
+    def __str__(self):
+        return f"{self.user.username} → {self.spot.title}"
+
 
 class Bookmark(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="bookmarks")
@@ -78,6 +81,9 @@ class Bookmark(models.Model):
         verbose_name = "保存"
         verbose_name_plural = "保存"
         unique_together = ("user", "spot")
+
+    def __str__(self):
+        return f"{self.user.username} → {self.spot.title}"
 
 
 class Comment(models.Model):
