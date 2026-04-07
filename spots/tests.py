@@ -1,8 +1,8 @@
-from django.test import TestCase, Client
+from django.test import TestCase
 from django.contrib.auth.models import User
 from django.urls import reverse
 
-from .models import Category, Spot, Like, Bookmark, Comment
+from .models import Category, Spot, Like, Bookmark
 
 
 class CategoryModelTest(TestCase):
