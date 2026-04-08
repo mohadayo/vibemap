@@ -317,7 +317,7 @@ class SpotCommentPostTest(TestCase):
     def test_post_comment_creates_comment(self):
         """ログイン済みユーザーがスポット詳細にPOSTするとコメントが作成される"""
         url = reverse("spots:spot_detail", kwargs={"pk": self.spot.pk})
-        response = self.client.post(url, {"text": "素晴らしいスポットです！"})
+        self.client.post(url, {"text": "素晴らしいスポットです！"})
         self.assertEqual(Comment.objects.filter(spot=self.spot).count(), 1)
         self.assertEqual(Comment.objects.first().text, "素晴らしいスポットです！")
 
