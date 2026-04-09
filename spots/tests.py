@@ -80,6 +80,20 @@ class HomeViewTest(TestCase):
         response = self.client.get(reverse("spots:home"))
         self.assertEqual(response.status_code, 200)
 
+    def test_home_pagination(self):
+        """ホームページがページネーションで12件ずつ表示される"""
+        user = User.objects.create_user(username="taro", password="pass1234")
+        cat = Category.objects.create(name="カフェ", slug="cafe")
+        for i in range(15):
+            Spot.objects.create(
+                author=user, title=f"スポット{i}", description="説明",
+                area="渋谷", category=cat,
+            )
+        response = self.client.get(reverse("spots:home"))
+        self.assertEqual(len(response.context["spots"]), 12)
+        response2 = self.client.get(reverse("spots:home") + "?page=2")
+        self.assertEqual(len(response2.context["spots"]), 3)
+
 
 class SpotDetailViewTest(TestCase):
     def setUp(self):
