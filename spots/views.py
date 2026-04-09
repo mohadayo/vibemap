@@ -1,13 +1,19 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.db.models import Q
 from .models import Spot, SpotImage, Like, Bookmark, Category
 from .forms import SpotForm, CommentForm
 
+SPOTS_PER_PAGE = 12
+
 
 def home(request):
-    spots = Spot.objects.select_related("author", "category").prefetch_related("images")[:20]
+    spot_list = Spot.objects.select_related("author", "category").prefetch_related("images")
+    paginator = Paginator(spot_list, SPOTS_PER_PAGE)
+    page_number = request.GET.get("page")
+    spots = paginator.get_page(page_number)
     categories = Category.objects.all()
     return render(request, "spots/home.html", {"spots": spots, "categories": categories})
 
@@ -128,9 +134,12 @@ def spot_search(request):
     if area:
         spots = spots.filter(area__icontains=area)
 
+    paginator = Paginator(spots, SPOTS_PER_PAGE)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
     categories = Category.objects.all()
     return render(
         request,
         "spots/search.html",
-        {"spots": spots[:40], "categories": categories, "q": q, "category_slug": category_slug, "area": area},
+        {"spots": page_obj, "categories": categories, "q": q, "category_slug": category_slug, "area": area},
     )
