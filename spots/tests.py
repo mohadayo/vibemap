@@ -1,7 +1,10 @@
+from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.contrib.auth.models import User
 from django.urls import reverse
 
+from .forms import validate_image_file, MAX_IMAGE_SIZE
 from .models import Category, Spot, Like, Bookmark, Comment
 
 
@@ -340,3 +343,94 @@ class SpotCommentPostTest(TestCase):
         url = reverse("spots:spot_detail", kwargs={"pk": self.spot.pk})
         response = self.client.post(url, {"text": "いいね！"})
         self.assertRedirects(response, url)
+
+
+class ImageValidationTest(TestCase):
+    """画像アップロードバリデーションのテスト"""
+
+    def test_valid_jpeg_passes(self):
+        """JPEG画像はバリデーションを通過する"""
+        f = SimpleUploadedFile("photo.jpg", b"\xff\xd8\xff" + b"\x00" * 100, content_type="image/jpeg")
+        validate_image_file(f)  # 例外が発生しないことを確認
+
+    def test_valid_png_passes(self):
+        """PNG画像はバリデーションを通過する"""
+        f = SimpleUploadedFile("photo.png", b"\x89PNG" + b"\x00" * 100, content_type="image/png")
+        validate_image_file(f)
+
+    def test_valid_webp_passes(self):
+        """WebP画像はバリデーションを通過する"""
+        f = SimpleUploadedFile("photo.webp", b"RIFF" + b"\x00" * 100, content_type="image/webp")
+        validate_image_file(f)
+
+    def test_valid_gif_passes(self):
+        """GIF画像はバリデーションを通過する"""
+        f = SimpleUploadedFile("photo.gif", b"GIF89a" + b"\x00" * 100, content_type="image/gif")
+        validate_image_file(f)
+
+    def test_pdf_rejected(self):
+        """PDFファイルは拒否される"""
+        f = SimpleUploadedFile("document.pdf", b"%PDF-1.4", content_type="application/pdf")
+        with self.assertRaises(ValidationError) as ctx:
+            validate_image_file(f)
+        self.assertIn("対応していない画像形式", ctx.exception.message)
+
+    def test_text_file_rejected(self):
+        """テキストファイルは拒否される"""
+        f = SimpleUploadedFile("file.txt", b"hello world", content_type="text/plain")
+        with self.assertRaises(ValidationError):
+            validate_image_file(f)
+
+    def test_oversized_image_rejected(self):
+        """5MBを超える画像は拒否される"""
+        large_data = b"\x00" * (MAX_IMAGE_SIZE + 1)
+        f = SimpleUploadedFile("huge.jpg", large_data, content_type="image/jpeg")
+        with self.assertRaises(ValidationError) as ctx:
+            validate_image_file(f)
+        self.assertIn("上限", ctx.exception.message)
+
+    def test_image_at_max_size_passes(self):
+        """5MBちょうどの画像はバリデーションを通過する"""
+        data = b"\x00" * MAX_IMAGE_SIZE
+        f = SimpleUploadedFile("ok.jpg", data, content_type="image/jpeg")
+        validate_image_file(f)
+
+
+class SpotCreateImageValidationTest(TestCase):
+    """スポット作成時の画像バリデーション統合テスト"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="taro", password="pass1234")
+        self.category = Category.objects.create(name="カフェ", slug="cafe")
+        self.client.login(username="taro", password="pass1234")
+
+    def _make_image(self, name="photo.jpg", content_type="image/jpeg", size=100):
+        return SimpleUploadedFile(name, b"\xff\xd8\xff" + b"\x00" * size, content_type=content_type)
+
+    def test_create_with_invalid_file_type_shows_error(self):
+        """非画像ファイルでスポット作成するとエラーが表示される"""
+        url = reverse("spots:spot_create")
+        pdf = SimpleUploadedFile("doc.pdf", b"%PDF-1.4" + b"\x00" * 100, content_type="application/pdf")
+        response = self.client.post(url, {
+            "title": "テスト",
+            "description": "説明",
+            "area": "渋谷",
+            "category": self.category.pk,
+            "images": [pdf],
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Spot.objects.exists())
+
+    def test_create_with_valid_image_succeeds(self):
+        """有効な画像でスポット作成が成功する"""
+        url = reverse("spots:spot_create")
+        img = self._make_image()
+        response = self.client.post(url, {
+            "title": "テスト",
+            "description": "説明",
+            "area": "渋谷",
+            "category": self.category.pk,
+            "images": [img],
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Spot.objects.exists())

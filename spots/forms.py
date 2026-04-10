@@ -1,5 +1,22 @@
 from django import forms
+from django.core.exceptions import ValidationError
 from .models import Spot, SpotImage, Comment
+
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
+
+
+def validate_image_file(f):
+    """画像ファイルの拡張子・MIMEタイプ・サイズをバリデーションする"""
+    if f.content_type not in ALLOWED_IMAGE_TYPES:
+        raise ValidationError(
+            f"対応していない画像形式です（{f.content_type}）。"
+            "JPEG, PNG, WebP, GIF のみ対応しています。"
+        )
+    if f.size > MAX_IMAGE_SIZE:
+        raise ValidationError(
+            f"画像サイズが上限（5MB）を超えています（{f.size / (1024 * 1024):.1f}MB）。"
+        )
 
 
 class SpotForm(forms.ModelForm):
