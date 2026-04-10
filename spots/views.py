@@ -1,9 +1,10 @@
+from django.core.exceptions import ValidationError
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.db.models import Q
 from .models import Spot, SpotImage, Like, Bookmark, Category
-from .forms import SpotForm, CommentForm
+from .forms import SpotForm, CommentForm, validate_image_file
 
 
 def home(request):
@@ -21,12 +22,19 @@ def spot_create(request):
             if not files:
                 form.add_error(None, "画像を1枚以上アップロードしてください。")
             else:
-                spot = form.save(commit=False)
-                spot.author = request.user
-                spot.save()
-                for i, f in enumerate(files):
-                    SpotImage.objects.create(spot=spot, image=f, order=i)
-                return redirect("spots:spot_detail", pk=spot.pk)
+                for f in files:
+                    try:
+                        validate_image_file(f)
+                    except ValidationError as e:
+                        form.add_error(None, e.message)
+                        break
+                if not form.errors:
+                    spot = form.save(commit=False)
+                    spot.author = request.user
+                    spot.save()
+                    for i, f in enumerate(files):
+                        SpotImage.objects.create(spot=spot, image=f, order=i)
+                    return redirect("spots:spot_detail", pk=spot.pk)
     else:
         form = SpotForm()
     return render(request, "spots/spot_create.html", {"form": form})
@@ -72,12 +80,20 @@ def spot_edit(request, pk):
         form = SpotForm(request.POST, instance=spot)
         files = request.FILES.getlist("images")
         if form.is_valid():
-            form.save()
             if files:
-                spot.images.all().delete()
-                for i, f in enumerate(files):
-                    SpotImage.objects.create(spot=spot, image=f, order=i)
-            return redirect("spots:spot_detail", pk=spot.pk)
+                for f in files:
+                    try:
+                        validate_image_file(f)
+                    except ValidationError as e:
+                        form.add_error(None, e.message)
+                        break
+            if not form.errors:
+                form.save()
+                if files:
+                    spot.images.all().delete()
+                    for i, f in enumerate(files):
+                        SpotImage.objects.create(spot=spot, image=f, order=i)
+                return redirect("spots:spot_detail", pk=spot.pk)
     else:
         form = SpotForm(instance=spot)
     return render(request, "spots/spot_edit.html", {"form": form, "spot": spot})
