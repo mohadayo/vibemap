@@ -23,7 +23,10 @@
         {% endif %}
         <button type="submit" class="btn btn-warning w-100 fw-bold py-2">ログイン</button>
       </form>
-      <p class="text-center mt-3 mb-0 small">
+      <p class="text-center mt-3 mb-1 small">
+        <a href="{% url 'accounts:password_reset' %}">パスワードをお忘れですか？</a>
+      </p>
+      <p class="text-center mb-0 small">
         アカウントをお持ちでないですか？ <a href="{% url 'accounts:signup' %}">新規登録</a>
       </p>
     </div>
