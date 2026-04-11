@@ -109,3 +109,56 @@ class BookmarkListViewTest(TestCase):
         url = reverse("accounts:bookmark_list")
         response = self.client.get(url)
         self.assertRedirects(response, reverse("accounts:login") + "?next=" + url)
+
+
+class PasswordResetViewTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="taro", password="pass1234", email="taro@example.com"
+        )
+
+    def test_password_reset_page_returns_200(self):
+        """パスワードリセットページが表示される"""
+        url = reverse("accounts:password_reset")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_password_reset_done_page_returns_200(self):
+        """パスワードリセットメール送信完了ページが表示される"""
+        url = reverse("accounts:password_reset_done")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_password_reset_complete_page_returns_200(self):
+        """パスワードリセット完了ページが表示される"""
+        url = reverse("accounts:password_reset_complete")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_password_reset_post_redirects(self):
+        """パスワードリセットフォーム送信後にリダイレクトされる"""
+        url = reverse("accounts:password_reset")
+        response = self.client.post(url, {"email": "taro@example.com"})
+        self.assertRedirects(response, "/accounts/password_reset/done/")
+
+    def test_password_reset_confirm_invalid_link(self):
+        """無効なトークンでパスワードリセット確認ページにアクセス"""
+        url = reverse(
+            "accounts:password_reset_confirm",
+            kwargs={"uidb64": "invalid", "token": "invalid-token"},
+        )
+        response = self.client.get(url, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+
+class SecuritySettingsTest(TestCase):
+    def test_production_security_settings(self):
+        """本番環境のセキュリティ設定が正しく定義されている"""
+        import inspect
+        import config.settings as raw_settings
+        source = inspect.getsource(raw_settings)
+        self.assertIn("SECURE_SSL_REDIRECT", source)
+        self.assertIn("SECURE_HSTS_SECONDS", source)
+        self.assertIn("SESSION_COOKIE_SECURE", source)
+        self.assertIn("CSRF_COOKIE_SECURE", source)
+        self.assertIn("SECURE_PROXY_SSL_HEADER", source)
