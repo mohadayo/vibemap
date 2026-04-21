@@ -345,6 +345,102 @@ class SpotCommentPostTest(TestCase):
         self.assertRedirects(response, url)
 
 
+class SpotSearchFilterTest(TestCase):
+    """検索フィルタリングのテスト"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="taro", password="pass1234")
+        self.cafe_cat = Category.objects.create(name="カフェ", slug="cafe")
+        self.ramen_cat = Category.objects.create(name="ラーメン", slug="ramen")
+        self.spot1 = Spot.objects.create(
+            author=self.user, title="渋谷カフェ", description="おしゃれ",
+            area="渋谷", category=self.cafe_cat,
+        )
+        self.spot2 = Spot.objects.create(
+            author=self.user, title="新宿ラーメン", description="こってり",
+            area="新宿", category=self.ramen_cat,
+        )
+        self.spot3 = Spot.objects.create(
+            author=self.user, title="渋谷ラーメン", description="あっさり",
+            area="渋谷", category=self.ramen_cat,
+        )
+
+    def test_filter_by_category(self):
+        """カテゴリフィルタで絞り込める"""
+        url = reverse("spots:spot_search") + "?category=cafe"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        spots = response.context["spots"]
+        self.assertEqual(len(spots), 1)
+        self.assertEqual(spots[0].title, "渋谷カフェ")
+
+    def test_filter_by_area(self):
+        """エリアフィルタで絞り込める"""
+        url = reverse("spots:spot_search") + "?area=渋谷"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        spots = response.context["spots"]
+        self.assertEqual(len(spots), 2)
+
+    def test_combined_filter(self):
+        """キーワード・カテゴリ・エリアの複合フィルタ"""
+        url = reverse("spots:spot_search") + "?q=ラーメン&category=ramen&area=渋谷"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        spots = response.context["spots"]
+        self.assertEqual(len(spots), 1)
+        self.assertEqual(spots[0].title, "渋谷ラーメン")
+
+    def test_filter_no_results(self):
+        """該当なしの場合は空リストを返す"""
+        url = reverse("spots:spot_search") + "?q=存在しないワード&category=cafe&area=北海道"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        spots = response.context["spots"]
+        self.assertEqual(len(spots), 0)
+
+
+class AccessControlTest(TestCase):
+    """アクセス制御のエッジケーステスト"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="taro", password="pass1234")
+        self.category = Category.objects.create(name="カフェ", slug="cafe")
+        self.spot = Spot.objects.create(
+            author=self.user, title="テストスポット", description="説明",
+            area="渋谷", category=self.category,
+        )
+
+    def test_unauthenticated_like_redirects_to_login(self):
+        """未ログインユーザーのいいね操作はログインページにリダイレクト"""
+        url = reverse("spots:spot_like", kwargs={"pk": self.spot.pk})
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login", response["Location"])
+        self.assertEqual(self.spot.likes.count(), 0)
+
+    def test_unauthenticated_bookmark_redirects_to_login(self):
+        """未ログインユーザーのブックマーク操作はログインページにリダイレクト"""
+        url = reverse("spots:spot_bookmark", kwargs={"pk": self.spot.pk})
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login", response["Location"])
+        self.assertEqual(self.spot.bookmarks.count(), 0)
+
+    def test_unauthenticated_comment_not_created(self):
+        """未ログインユーザーのコメント投稿はコメントが作成されない"""
+        url = reverse("spots:spot_detail", kwargs={"pk": self.spot.pk})
+        self.client.post(url, {"text": "未ログインコメント"})
+        self.assertEqual(self.spot.comments.count(), 0)
+
+    def test_like_nonexistent_spot_returns_404(self):
+        """存在しないスポットへのいいね操作は404を返す"""
+        self.client.login(username="taro", password="pass1234")
+        url = reverse("spots:spot_like", kwargs={"pk": 99999})
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 404)
+
+
 class ImageValidationTest(TestCase):
     """画像アップロードバリデーションのテスト"""
 
