@@ -76,6 +76,28 @@ class UserProfileViewTest(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 404)
 
+    def test_user_profile_pagination(self):
+        """プロフィールページのスポット一覧が12件ずつページネーションされる"""
+        from spots.models import Category, Spot
+
+        cat = Category.objects.create(name="カフェ", slug="cafe")
+        for i in range(15):
+            Spot.objects.create(
+                author=self.user,
+                title=f"スポット{i}",
+                description="説明",
+                area="渋谷",
+                category=cat,
+            )
+        url = reverse("accounts:user_profile", kwargs={"username": "taro"})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["spots"]), 12)
+
+        response2 = self.client.get(url + "?page=2")
+        self.assertEqual(response2.status_code, 200)
+        self.assertEqual(len(response2.context["spots"]), 3)
+
 
 class ProfileEditViewTest(TestCase):
     def setUp(self):
