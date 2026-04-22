@@ -2,7 +2,10 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.core.paginator import Paginator
 from .forms import SignUpForm, ProfileForm
+
+PROFILE_SPOTS_PER_PAGE = 12
 
 
 def signup(request):
@@ -32,7 +35,10 @@ def profile_edit(request):
 
 def user_profile(request, username):
     user = get_object_or_404(User, username=username)
-    spots = user.spots.all()
+    spot_list = user.spots.select_related("category").prefetch_related("images")
+    paginator = Paginator(spot_list, PROFILE_SPOTS_PER_PAGE)
+    page_number = request.GET.get("page")
+    spots = paginator.get_page(page_number)
     return render(request, "accounts/user_profile.html", {"profile_user": user, "spots": spots})
 
 
