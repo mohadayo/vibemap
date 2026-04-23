@@ -140,3 +140,17 @@ class AccessControlTest(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("/accounts/login", response["Location"])
         self.assertTrue(Spot.objects.filter(pk=self.spot.pk).exists())
+
+    def test_like_via_get_returns_405(self):
+        """GETリクエストによるいいね操作は405を返す"""
+        self.client.login(username="taro", password="pass1234")
+        url = reverse("spots:spot_like", kwargs={"pk": self.spot.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 405)
+
+    def test_bookmark_via_get_returns_405(self):
+        """GETリクエストによるブックマーク操作は405を返す"""
+        self.client.login(username="taro", password="pass1234")
+        url = reverse("spots:spot_bookmark", kwargs={"pk": self.spot.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 405)
