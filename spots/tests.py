@@ -530,3 +530,48 @@ class SpotCreateImageValidationTest(TestCase):
         })
         self.assertEqual(response.status_code, 302)
         self.assertTrue(Spot.objects.exists())
+
+    def test_create_without_images_shows_error(self):
+        """画像なしでスポット作成するとエラーが表示される"""
+        url = reverse("spots:spot_create")
+        response = self.client.post(url, {
+            "title": "テスト",
+            "description": "説明",
+            "area": "渋谷",
+            "category": self.category.pk,
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Spot.objects.exists())
+
+
+class SpotEditImageTest(TestCase):
+    """スポット編集時の画像処理テスト"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="taro", password="pass1234")
+        self.category = Category.objects.create(name="カフェ", slug="cafe")
+        self.spot = Spot.objects.create(
+            author=self.user, title="元のタイトル", description="元の説明",
+            area="渋谷", category=self.category,
+        )
+        img = SimpleUploadedFile("photo.jpg", b"\xff\xd8\xff" + b"\x00" * 100, content_type="image/jpeg")
+        from .models import SpotImage
+        SpotImage.objects.create(spot=self.spot, image=img, order=0)
+        self.client.login(username="taro", password="pass1234")
+
+    def test_edit_without_new_images_keeps_existing(self):
+        """画像をアップロードせずにスポットを編集すると既存画像が保持される"""
+        url = reverse("spots:spot_edit", kwargs={"pk": self.spot.pk})
+        response = self.client.post(url, {
+            "title": "新しいタイトル",
+            "description": "新しい説明",
+            "area": "新宿",
+            "category": self.category.pk,
+        })
+        self.assertRedirects(
+            response,
+            reverse("spots:spot_detail", kwargs={"pk": self.spot.pk}),
+        )
+        self.spot.refresh_from_db()
+        self.assertEqual(self.spot.title, "新しいタイトル")
+        self.assertEqual(self.spot.images.count(), 1)

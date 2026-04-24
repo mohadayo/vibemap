@@ -99,6 +99,38 @@ class UserProfileViewTest(TestCase):
         self.assertEqual(len(response2.context["spots"]), 3)
 
 
+class SignUpDuplicateTest(TestCase):
+    """重複ユーザー名のサインアップテスト"""
+
+    def test_signup_duplicate_username_shows_error(self):
+        """既存ユーザー名でのサインアップはエラーを表示しユーザーが作成されない"""
+        User.objects.create_user(username="existing", password="pass1234")
+        response = self.client.post(
+            reverse("accounts:signup"),
+            {
+                "username": "existing",
+                "email": "new@example.com",
+                "password1": "Str0ngPass!",
+                "password2": "Str0ngPass!",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(User.objects.filter(username="existing").count(), 1)
+
+    def test_signup_auto_login(self):
+        """サインアップ成功後に自動ログインされホームにリダイレクトされる"""
+        response = self.client.post(
+            reverse("accounts:signup"),
+            {
+                "username": "newuser",
+                "email": "new@example.com",
+                "password1": "Str0ngPass!",
+                "password2": "Str0ngPass!",
+            },
+        )
+        self.assertRedirects(response, reverse("spots:home"))
+
+
 class ProfileEditViewTest(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="taro", password="pass1234")
@@ -114,6 +146,28 @@ class ProfileEditViewTest(TestCase):
         url = reverse("accounts:profile_edit")
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
+
+    def test_profile_edit_post_updates_display_name(self):
+        """プロフィール編集POSTで表示名が更新される"""
+        url = reverse("accounts:profile_edit")
+        response = self.client.post(url, {"display_name": "太郎", "bio": "自己紹介です"})
+        self.assertRedirects(
+            response,
+            reverse("accounts:user_profile", kwargs={"username": "taro"}),
+        )
+        self.user.profile.refresh_from_db()
+        self.assertEqual(self.user.profile.display_name, "太郎")
+        self.assertEqual(self.user.profile.bio, "自己紹介です")
+
+    def test_profile_edit_post_clears_display_name(self):
+        """表示名を空にするとユーザー名にフォールバックする"""
+        self.user.profile.display_name = "太郎"
+        self.user.profile.save()
+        url = reverse("accounts:profile_edit")
+        self.client.post(url, {"display_name": "", "bio": ""})
+        self.user.profile.refresh_from_db()
+        self.assertEqual(self.user.profile.display_name, "")
+        self.assertEqual(self.user.profile.get_display_name(), "taro")
 
 
 class BookmarkListViewTest(TestCase):
