@@ -186,6 +186,27 @@ class BookmarkListViewTest(TestCase):
         response = self.client.get(url)
         self.assertRedirects(response, reverse("accounts:login") + "?next=" + url)
 
+    def test_bookmark_list_pagination(self):
+        """ブックマーク一覧が12件ずつページネーションされる"""
+        from spots.models import Category, Spot, Bookmark
+
+        cat = Category.objects.create(name="カフェ", slug="cafe")
+        for i in range(15):
+            spot = Spot.objects.create(
+                author=self.user, title=f"スポット{i}",
+                description="説明", area="渋谷", category=cat,
+            )
+            Bookmark.objects.create(user=self.user, spot=spot)
+
+        url = reverse("accounts:bookmark_list")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["bookmarks"]), 12)
+
+        response2 = self.client.get(url + "?page=2")
+        self.assertEqual(response2.status_code, 200)
+        self.assertEqual(len(response2.context["bookmarks"]), 3)
+
 
 class PasswordResetViewTest(TestCase):
     def setUp(self):
