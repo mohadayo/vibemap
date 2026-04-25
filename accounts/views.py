@@ -6,6 +6,7 @@ from django.core.paginator import Paginator
 from .forms import SignUpForm, ProfileForm
 
 PROFILE_SPOTS_PER_PAGE = 12
+BOOKMARKS_PER_PAGE = 12
 
 
 def signup(request):
@@ -44,5 +45,10 @@ def user_profile(request, username):
 
 @login_required
 def bookmark_list(request):
-    bookmarks = request.user.bookmarks.select_related("spot__category", "spot__author").all()
+    bookmark_qs = request.user.bookmarks.select_related(
+        "spot__category", "spot__author"
+    ).order_by("-created_at")
+    paginator = Paginator(bookmark_qs, BOOKMARKS_PER_PAGE)
+    page_number = request.GET.get("page")
+    bookmarks = paginator.get_page(page_number)
     return render(request, "accounts/bookmark_list.html", {"bookmarks": bookmarks})
